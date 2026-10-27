@@ -1,4 +1,4 @@
-RITE is an event-driven telemetry platform for gathering, viewing, and displaying live operational data from server agents.
+DRITE is an event-driven telemetry platform for gathering, viewing, and displaying live operational data from server agents.
 
 ## Backend capabilities implemented
 
