@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	drite "github.com/creaseo/DRITE"
+	drite "github.com/creaseo/DRITE/internal/drite"
 	"github.com/gorilla/websocket"
 	"net/http"
 	"net/url"

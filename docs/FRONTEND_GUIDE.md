@@ -146,7 +146,7 @@ If the server restarts or the connection drops:
 | :--- | :--- | :--- |
 | Server Base URL | `http://localhost:8080` (or current host) | Top-right gear icon modal |
 | Bearer Token | `drite-demo-token` | Top-right gear icon modal |
-| Static Serving Path | `/` | Configured in `server.go` (`http.FileServer`) |
+| Static Serving Path | `/` | Configured in `internal/drite/server.go` (`http.FileServer`) |
 
 When deploying behind a reverse proxy (e.g., Nginx, Caddy) or production HTTPS/WSS:
 - Ensure the proxy passes `Upgrade: websocket` and `Connection: Upgrade` headers for `/ws/*`.

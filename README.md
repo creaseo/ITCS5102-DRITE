@@ -82,4 +82,4 @@ go run ./cmd/loadtest -agents 10 -dashboards 2 -duration 10s
 The load tool requires the server to be running. It exits unsuccessfully if
 connections fail or the expected deliveries are incomplete.
 
-See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for full system overview, [BACKEND_GUIDE.md](BACKEND_GUIDE.md) for backend internals and API contracts, and [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) for dashboard features and UI testing.
+See [PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md) for full system overview, [BACKEND_GUIDE.md](docs/BACKEND_GUIDE.md) for backend internals and API contracts, and [FRONTEND_GUIDE.md](docs/FRONTEND_GUIDE.md) for dashboard features and UI testing.

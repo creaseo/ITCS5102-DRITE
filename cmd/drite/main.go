@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	drite "github.com/creaseo/DRITE"
+	drite "github.com/creaseo/DRITE/internal/drite"
 )
 
 func main() {

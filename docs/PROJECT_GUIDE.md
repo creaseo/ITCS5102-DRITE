@@ -10,7 +10,7 @@ This guide provides an overarching architectural map, unified execution instruct
 
 | Document | Scope & Purpose |
 | :--- | :--- |
-| **[README.md](README.md)** | Quickstart commands, environment variables, route surface, and verify steps. |
+| **[README.md](../README.md)** | Quickstart commands, environment variables, route surface, and verify steps. |
 | **[BACKEND_GUIDE.md](BACKEND_GUIDE.md)** | Go backend architecture, use cases (UC1–UC7), concurrency, REST/WebSocket APIs, and profiling. |
 | **[FRONTEND_GUIDE.md](FRONTEND_GUIDE.md)** | Web dashboard, single-use ticket handshake, Canvas charts, interactive controls, and UI testing. |
 | **[VALIDATION.md](VALIDATION.md)** | Local verification record, 87.4% test coverage, race detection, and load test benchmarks. |
@@ -24,7 +24,7 @@ This guide provides an overarching architectural map, unified execution instruct
         │  (ws://host/ws/agent?agent_id=node-01)
         ▼
 ┌────────────────────────────────────────────────────────┐
-│                   DRITE Go Backend                     │
+│           DRITE Go Backend (internal/drite)            │
 │                                                        │
 │  ├── UC1: Bearer & Ticket Authentication               │
 │  ├── UC2: Concurrent Metric Ingestion                  │
