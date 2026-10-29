@@ -85,6 +85,7 @@ const el = {
   alertFeed: document.getElementById('alert-feed'),
   alertEmptyState: document.getElementById('alert-empty-state'),
   incidentCounterBadge: document.getElementById('incident-counter-badge'),
+  btnClearAlerts: document.getElementById('btn-clear-alerts'),
   fleetTableBody: document.getElementById('fleet-table-body'),
   btnRefreshSnapshot: document.getElementById('btn-refresh-snapshot'),
 
@@ -98,6 +99,10 @@ const el = {
   cfgAuthToken: document.getElementById('cfg-auth-token')
 };
 
+// Canvas Hover & Tooltip State
+let hoverCpuX = null;
+let hoverMemNetX = null;
+
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
   setupCanvases();
@@ -105,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadInitialState();
   initConnection();
   window.addEventListener('resize', handleResize);
+  setInterval(renderFleetTable, 2000); // Live node staleness check every 2s
 });
 
 function setupCanvases() {
@@ -112,6 +118,31 @@ function setupCanvases() {
   cpuCtx = cpuCanvas ? cpuCanvas.getContext('2d') : null;
   memNetCanvas = document.getElementById('mem-net-chart-canvas');
   memNetCtx = memNetCanvas ? memNetCanvas.getContext('2d') : null;
+
+  if (cpuCanvas) {
+    cpuCanvas.addEventListener('mousemove', (e) => {
+      const rect = cpuCanvas.getBoundingClientRect();
+      hoverCpuX = e.clientX - rect.left;
+      renderCpuChart();
+    });
+    cpuCanvas.addEventListener('mouseleave', () => {
+      hoverCpuX = null;
+      renderCpuChart();
+    });
+  }
+
+  if (memNetCanvas) {
+    memNetCanvas.addEventListener('mousemove', (e) => {
+      const rect = memNetCanvas.getBoundingClientRect();
+      hoverMemNetX = e.clientX - rect.left;
+      renderMemNetChart();
+    });
+    memNetCanvas.addEventListener('mouseleave', () => {
+      hoverMemNetX = null;
+      renderMemNetChart();
+    });
+  }
+
   handleResize();
 }
 
@@ -165,6 +196,15 @@ function setupEventListeners() {
       state.streaming.soundEnabled = !state.streaming.soundEnabled;
       el.soundIcon.textContent = state.streaming.soundEnabled ? '🔔' : '🔕';
       el.btnToggleSound.title = state.streaming.soundEnabled ? 'Mute Alert Sound' : 'Enable Alert Sound';
+    });
+  }
+
+  // Clear Alerts Feed
+  if (el.btnClearAlerts) {
+    el.btnClearAlerts.addEventListener('click', () => {
+      state.incidents = [];
+      state.totalIncidents = 0;
+      renderAlertFeed();
     });
   }
 
@@ -518,6 +558,19 @@ function renderFleetTable() {
     const net = m ? `${(m.network_speed / 1024).toFixed(1)} KB/s` : '--';
     const isAlert = m && m.cpu_usage > state.config.cpuThreshold;
 
+    let statusText = '🟢 Reporting';
+    let statusColor = 'var(--status-healthy)';
+    if (diffSec > 30) {
+      statusText = '🔴 Offline';
+      statusColor = 'var(--status-critical)';
+    } else if (diffSec > 10) {
+      statusText = '🟡 Stale';
+      statusColor = 'var(--status-warning)';
+    } else if (isAlert) {
+      statusText = '🔴 In Alert';
+      statusColor = 'var(--status-critical)';
+    }
+
     rows.push(`
       <tr style="${state.selectedAgent !== 'all' && state.selectedAgent !== id ? 'opacity: 0.35' : ''}">
         <td>
@@ -525,8 +578,8 @@ function renderFleetTable() {
           <strong>${escapeHtml(id)}</strong>
         </td>
         <td>
-          <span style="color: ${isAlert ? 'var(--status-critical)' : 'var(--status-healthy)'}">
-            ${isAlert ? '🔴 High CPU' : '🟢 Reporting'}
+          <span style="color: ${statusColor}; font-weight: 500;">
+            ${statusText}
           </span>
         </td>
         <td style="color: ${isAlert ? 'var(--status-critical)' : 'inherit'}">${cpu}</td>
@@ -627,6 +680,37 @@ function renderCpuChart() {
       ctx.fill();
     }
   }
+
+  // Draw Tooltip & Crosshair if hovering
+  if (hoverCpuX !== null && state.history.cpuGlobal.length > 0) {
+    const idx = Math.min(state.history.cpuGlobal.length - 1, Math.max(0, Math.round((hoverCpuX - 40) / step)));
+    const targetX = 40 + idx * step;
+    const cpuVal = state.history.cpuGlobal[idx];
+    const timeVal = state.history.timestamps[idx] ? state.history.timestamps[idx].toLocaleTimeString() : '';
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(targetX, 10);
+    ctx.lineTo(targetX, h - 20);
+    ctx.stroke();
+
+    // Tooltip Box
+    const tipText = `${timeVal} | CPU: ${cpuVal.toFixed(1)}%`;
+    ctx.font = '11px JetBrains Mono';
+    const textWidth = ctx.measureText(tipText).width;
+    const boxX = Math.min(w - textWidth - 24, Math.max(40, targetX - textWidth / 2 - 10));
+    ctx.fillStyle = '#111726';
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.fillRect(boxX, 10, textWidth + 20, 24);
+    ctx.strokeRect(boxX, 10, textWidth + 20, 24);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(tipText, boxX + 10, 26);
+    ctx.restore();
+  }
 }
 
 function renderMemNetChart() {
@@ -668,6 +752,38 @@ function renderMemNetChart() {
   ctx.strokeStyle = '#06b6d4';
   ctx.lineWidth = 2;
   ctx.stroke();
+
+  // Draw Tooltip & Crosshair for Mem/Net
+  if (hoverMemNetX !== null && memData.length > 0) {
+    const idx = Math.min(memData.length - 1, Math.max(0, Math.round((hoverMemNetX - 40) / step)));
+    const targetX = 40 + idx * step;
+    const memVal = memData[idx];
+    const netVal = netData[idx];
+    const timeVal = state.history.timestamps[idx] ? state.history.timestamps[idx].toLocaleTimeString() : '';
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(targetX, 10);
+    ctx.lineTo(targetX, h - 20);
+    ctx.stroke();
+
+    // Tooltip Box
+    const tipText = `${timeVal} | Mem: ${memVal.toFixed(1)}% | Net: ${netVal.toFixed(1)} KB/s`;
+    ctx.font = '11px JetBrains Mono';
+    const textWidth = ctx.measureText(tipText).width;
+    const boxX = Math.min(w - textWidth - 24, Math.max(40, targetX - textWidth / 2 - 10));
+    ctx.fillStyle = '#111726';
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.fillRect(boxX, 10, textWidth + 20, 24);
+    ctx.strokeRect(boxX, 10, textWidth + 20, 24);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(tipText, boxX + 10, 26);
+    ctx.restore();
+  }
 }
 
 function drawGrid(ctx, w, h) {
