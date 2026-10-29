@@ -26,7 +26,7 @@ Browser Client (web/app.js)
   │        ├── envelope: "metric" ──> Updates rolling charts, fleet table, KPIs
   │        └── envelope: "alert" ───> Triggers alert card, counter badge, audio chime
   │
-  └── 4. POST /api/settings ────────> Dynamically updates CPU alert threshold
+  └── 4. POST /api/settings ────────> Dynamically updates CPU threshold and alert cooldown
 ```
 
 ---
@@ -83,10 +83,10 @@ If the server restarts or the connection drops:
 
 ## 5. Interactive controls & features
 
-1. **Runtime Threshold Tuning**:
-   - The slider in the *Runtime Threshold Controls* panel allows operators to adjust the threshold between 1% and 100%.
-   - Clicking **Apply Threshold** sends `POST /api/settings` with `{"cpu_threshold": <val>}`.
-   - The server acknowledges the change immediately without requiring a restart, and the chart's threshold line updates in real time.
+1. **Runtime Telemetry Controls (Threshold & Alert Cooldown)**:
+   - Operators can adjust the CPU alert threshold (1% to 100%) and the alert cooldown / throttling period (0s to 60s).
+   - Clicking **Apply Controls** sends `POST /api/settings` with `{"cpu_threshold": <val>, "alert_cooldown_sec": <val>}`.
+   - The server acknowledges the changes immediately without requiring a restart; the chart threshold line and header badge update in real time.
 2. **Node Fleet Filter Dropdown**:
    - Located in the CPU chart header.
    - Allows operators to switch between viewing all fleet nodes simultaneously or isolating a specific agent (e.g., `Node: node-01`).

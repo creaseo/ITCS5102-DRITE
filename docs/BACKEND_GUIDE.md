@@ -33,7 +33,7 @@ averages, snapshots and live events; additional alert rules are future extension
 | UC3 channel fan-out | Central hub owns client membership; buffered subscriber queues; slow clients disconnected | Multiple-subscriber delivery and slow-consumer isolation tests |
 | UC4 rolling averages | Mutex-protected history; one-minute/five-minute global and per-agent averages | Window boundaries, out-of-order input, capacity, expiry and snapshot isolation tests |
 | UC5 heartbeat cleanup | Server Ping; client Pong; read/write deadlines; explicit shutdown | Missing-Pong eviction, responsive client and shutdown tests |
-| UC6 anomaly dispatch | CPU strictly above the active threshold produces an alert before its metric event | Alert ordering, strict threshold boundary, incident snapshot tests |
+| UC6 anomaly dispatch | CPU strictly above the active threshold produces an alert before its metric event, with per-agent alert cooldown throttling | Alert ordering, strict threshold boundary, incident snapshot, alert cooldown throttling tests |
 | UC7 REST reporting | Settings, averages and snapshot with bounded incident history | Authentication, settings validation and snapshot contents tests |
 | Program 1 | Four primitive types and eight operations | Runnable `demo-primitives` command |
 | Program 2 | Structs, maps, slices, loops, conditionals and switch | Runnable `demo-structures` command |
@@ -184,14 +184,14 @@ TOKEN=drite-demo-token
 curl -sS -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/settings
 curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"cpu_threshold":80}' http://localhost:8080/api/settings
+  -d '{"cpu_threshold":80,"alert_cooldown_sec":5}' http://localhost:8080/api/settings
 curl -sS -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/metrics/averages
 curl -sS -H "Authorization: Bearer $TOKEN" \
   'http://localhost:8080/api/metrics/averages?agent_id=node-01'
 curl -sS -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/snapshot
 ```
 
-Settings return `{"auth_required":true,"cpu_threshold":80}`. Averages return:
+Settings return `{"auth_required":true,"cpu_threshold":80,"alert_cooldown_sec":5}`. Averages return:
 
 ```json
 {

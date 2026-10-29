@@ -7,6 +7,13 @@ func (s *Server) cpuThreshold() float64 {
 	defer s.configMu.RUnlock()
 	return s.threshold
 }
+
+func (s *Server) alertCooldown() time.Duration {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+	return s.cooldown
+}
+
 func evaluateCPU(m MetricMessage, threshold float64) *AlertMessage {
 	if m.CPUUsage <= threshold {
 		return nil
@@ -25,9 +32,20 @@ func (s *Server) processMetrics() {
 			s.aggregator.Add(metric)
 			now := time.Now().UTC()
 			if alert := evaluateCPU(metric, s.cpuThreshold()); alert != nil {
-				s.aggregator.addIncident(*alert)
-				if !s.publish(BroadcastEnvelope{Type: "alert", Alert: alert, ServerTime: now}) {
-					return
+				cooldown := s.alertCooldown()
+				s.configMu.Lock()
+				lastTime, exists := s.lastAlerts[metric.AgentID]
+				shouldFire := !exists || cooldown <= 0 || now.Sub(lastTime) >= cooldown
+				if shouldFire {
+					s.lastAlerts[metric.AgentID] = now
+				}
+				s.configMu.Unlock()
+
+				if shouldFire {
+					s.aggregator.addIncident(*alert)
+					if !s.publish(BroadcastEnvelope{Type: "alert", Alert: alert, ServerTime: now}) {
+						return
+					}
 				}
 			}
 			avg := s.aggregator.Averages(now)

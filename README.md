@@ -34,6 +34,7 @@ terminal. The example agent generates data; it does not measure actual computer 
 | `PORT` | `8080` | HTTP server port, 1–65535 |
 | `DRITE_AUTH_TOKEN` | `drite-demo-token` | Shared bearer credential |
 | `DRITE_CPU_THRESHOLD` | `90` | Initial CPU alert threshold, greater than 0 and at most 100 |
+| `DRITE_ALERT_COOLDOWN` | `5s` | Alert cooldown duration per agent node (e.g. 5s, 10s) |
 
 `.env.example` documents these values. `.env` files are not loaded automatically.
 Use a private token and HTTPS/WSS when running beyond a local demonstration.
@@ -44,7 +45,7 @@ The original paths are preserved:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET, POST | `/api/settings` | Read or update the CPU alert threshold |
+| GET, POST | `/api/settings` | Read or update CPU threshold and alert cooldown |
 | GET | `/api/metrics/averages` | Read one-minute and five-minute averages |
 | GET (WebSocket) | `/ws/agent?agent_id=node-01` | Submit metrics for one agent |
 | GET (WebSocket) | `/ws/dashboard` | Subscribe to live metric and alert events |
@@ -67,7 +68,7 @@ A ticket is bound to its role and, for agents, its agent ID.
 3. `uc3_broadcast.go`: channel-based fan-out and slow-consumer eviction.
 4. `uc4_aggregation.go`: bounded history and thread-safe rolling averages.
 5. `uc5_heartbeat.go`: ping/pong deadlines and connection cleanup.
-6. `uc6_alerts.go`: CPU rule evaluation and live alert dispatch.
+6. `uc6_alerts.go`: CPU rule evaluation, alert cooldown throttling, and live dispatch.
 7. `uc7_rest_api.go`: settings, averages and diagnostic snapshot APIs.
 
 ## Verify

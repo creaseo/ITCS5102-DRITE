@@ -8,7 +8,8 @@ const state = {
   config: {
     apiUrl: window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:8080',
     token: 'drite-demo-token',
-    cpuThreshold: 90
+    cpuThreshold: 90,
+    alertCooldown: 5
   },
   connection: {
     status: 'connecting',
@@ -53,8 +54,11 @@ const el = {
   statusBadge: document.getElementById('ws-status'),
   statusLabel: document.getElementById('status-label'),
   thresholdBadge: document.getElementById('current-threshold-badge'),
+  cooldownBadge: document.getElementById('current-cooldown-badge'),
   thresholdSlider: document.getElementById('threshold-slider'),
   sliderValDisplay: document.getElementById('slider-val-display'),
+  cooldownSlider: document.getElementById('cooldown-slider'),
+  cooldownValDisplay: document.getElementById('cooldown-val-display'),
   btnUpdateThreshold: document.getElementById('btn-update-threshold'),
   settingsFeedback: document.getElementById('settings-feedback'),
   displayToken: document.getElementById('display-token'),
@@ -168,6 +172,11 @@ function setupEventListeners() {
   el.thresholdSlider.addEventListener('input', (e) => {
     el.sliderValDisplay.textContent = `${e.target.value}%`;
   });
+  if (el.cooldownSlider) {
+    el.cooldownSlider.addEventListener('input', (e) => {
+      el.cooldownValDisplay.textContent = `${e.target.value}s`;
+    });
+  }
 
   el.btnUpdateThreshold.addEventListener('click', updateThresholdSettings);
   el.btnRefreshSnapshot.addEventListener('click', loadInitialState);
@@ -276,6 +285,12 @@ async function loadInitialState() {
       el.thresholdBadge.textContent = settings.cpu_threshold;
       el.thresholdSlider.value = settings.cpu_threshold;
       el.sliderValDisplay.textContent = `${settings.cpu_threshold}%`;
+      if (settings.alert_cooldown_sec !== undefined) {
+        state.config.alertCooldown = settings.alert_cooldown_sec;
+        if (el.cooldownBadge) el.cooldownBadge.textContent = settings.alert_cooldown_sec;
+        if (el.cooldownSlider) el.cooldownSlider.value = settings.alert_cooldown_sec;
+        if (el.cooldownValDisplay) el.cooldownValDisplay.textContent = `${settings.alert_cooldown_sec}s`;
+      }
     }
 
     // Fetch Snapshot
@@ -804,9 +819,10 @@ function drawGrid(ctx, w, h) {
   ctx.restore();
 }
 
-// 8. Runtime Threshold Update
+// 8. Runtime Telemetry Controls Update
 async function updateThresholdSettings() {
-  const newVal = parseFloat(el.thresholdSlider.value);
+  const newThreshold = parseFloat(el.thresholdSlider.value);
+  const newCooldown = el.cooldownSlider ? parseFloat(el.cooldownSlider.value) : state.config.alertCooldown;
   el.btnUpdateThreshold.disabled = true;
   el.settingsFeedback.textContent = 'Updating...';
 
@@ -817,12 +833,17 @@ async function updateThresholdSettings() {
         'Authorization': `Bearer ${state.config.token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ cpu_threshold: newVal })
+      body: JSON.stringify({
+        cpu_threshold: newThreshold,
+        alert_cooldown_sec: newCooldown
+      })
     });
 
     if (res.ok) {
-      state.config.cpuThreshold = newVal;
-      el.thresholdBadge.textContent = newVal;
+      state.config.cpuThreshold = newThreshold;
+      state.config.alertCooldown = newCooldown;
+      el.thresholdBadge.textContent = newThreshold;
+      if (el.cooldownBadge) el.cooldownBadge.textContent = newCooldown;
       el.settingsFeedback.textContent = '✓ Updated successfully';
       renderCpuChart();
     } else {

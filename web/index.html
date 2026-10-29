@@ -37,7 +37,7 @@
         </div>
         <div class="badge-threshold">
           <span class="badge-icon">⚡</span>
-          <span>Alert Rule: CPU &gt; <strong id="current-threshold-badge">90</strong>%</span>
+          <span>Alert Rule: CPU &gt; <strong id="current-threshold-badge">90</strong>% (<strong id="current-cooldown-badge">5</strong>s cooldown)</span>
         </div>
         <button id="btn-toggle-sound" class="btn-icon" title="Toggle Alert Chime Sound">
           <span id="sound-icon">🔔</span>
@@ -179,8 +179,8 @@
       <section class="card settings-card">
         <div class="card-header">
           <div class="card-title-group">
-            <h2 class="card-title">Runtime Threshold Controls</h2>
-            <p class="card-subtitle">Updates active rule via REST API (/api/settings)</p>
+            <h2 class="card-title">Runtime Telemetry Controls</h2>
+            <p class="card-subtitle">Updates threshold and alert cooldown via REST API (/api/settings)</p>
           </div>
         </div>
         
@@ -191,7 +191,16 @@
               <span class="slider-display" id="slider-val-display">90%</span>
             </div>
             <input type="range" id="threshold-slider" min="1" max="100" value="90" class="range-slider">
-            <span class="form-help">Samples exceeding this value immediately trigger alert events.</span>
+            <span class="form-help">Samples exceeding this value trigger alert events.</span>
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label for="cooldown-slider">Alert Cooldown / Throttle</label>
+              <span class="slider-display" id="cooldown-val-display">5s</span>
+            </div>
+            <input type="range" id="cooldown-slider" min="0" max="60" value="5" class="range-slider">
+            <span class="form-help">Minimum delay between alerts per node to prevent spam (0s = every sample).</span>
           </div>
 
           <div class="form-actions">
@@ -199,7 +208,7 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
-              Apply Threshold
+              Apply Controls
             </button>
             <span class="settings-feedback" id="settings-feedback"></span>
           </div>

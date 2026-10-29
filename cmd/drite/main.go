@@ -15,6 +15,7 @@ import (
 
 func main() {
 	profileAddress := flag.String("pprof", "", "optional loopback profiling address, e.g. 127.0.0.1:6060")
+	cooldownFlag := flag.Duration("cooldown", 0, "alert cooldown period, e.g. 5s or 10s (default 5s)")
 	flag.Parse()
 	stopProfiler, err := startProfiler(*profileAddress)
 	if err != nil {
@@ -24,6 +25,9 @@ func main() {
 	cfg, address, err := drite.LoadConfig()
 	if err != nil {
 		log.Fatal(err)
+	}
+	if *cooldownFlag > 0 {
+		cfg.AlertCooldown = *cooldownFlag
 	}
 	app := drite.NewServer(cfg)
 	server := &http.Server{Addr: address, Handler: app.Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}

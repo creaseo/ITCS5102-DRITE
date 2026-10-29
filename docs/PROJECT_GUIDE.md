@@ -42,7 +42,7 @@ This guide provides an overarching architectural map, unified execution instruct
   ├── Real-Time CPU & Threshold Line Chart (Canvas)
   ├── Memory & Network Throughput Chart (Canvas)
   ├── Live Incident & Breach Feed (Web Audio chime)
-  ├── Dynamic Threshold Slider (POST /api/settings)
+  ├── Dynamic Telemetry Controls (Threshold & Alert Cooldown via POST /api/settings)
   ├── Active Node Fleet Matrix with Staleness Tracking
   └── Snapshot JSON Data Exporter
 ```
