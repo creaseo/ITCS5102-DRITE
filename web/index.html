@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DRITE — Real-Time Infrastructure Telemetry</title>
+  <meta name="description" content="High-performance real-time telemetry streaming, rolling metric aggregation, and anomaly alerts powered by Go.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient background glow effects -->
+  <div class="ambient-glow glow-top"></div>
+  <div class="ambient-glow glow-bottom"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">DRITE</h1>
+          <p class="brand-subtitle">Distributed Real-Time Infrastructure Telemetry Engine</p>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <div class="badge-status" id="ws-status">
+          <span class="status-indicator-dot pulse"></span>
+          <span class="status-text" id="status-label">Connecting...</span>
+        </div>
+        <div class="badge-threshold">
+          <span class="badge-icon">⚡</span>
+          <span>Alert Rule: CPU &gt; <strong id="current-threshold-badge">90</strong>%</span>
+        </div>
+        <button id="btn-toggle-sound" class="btn-icon" title="Toggle Alert Chime Sound">
+          <span id="sound-icon">🔔</span>
+        </button>
+        <button id="btn-pause-stream" class="btn-icon" title="Pause / Resume Live Telemetry Stream">
+          <span id="pause-icon">⏸️</span>
+        </button>
+        <button id="btn-quick-config" class="btn-icon" title="Server Connection Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- KPI Stat Badges -->
+    <section class="kpi-grid">
+      <div class="kpi-card" id="kpi-cpu">
+        <div class="kpi-header">
+          <span class="kpi-title">Fleet Avg CPU</span>
+          <span class="kpi-pill pill-cpu">1m / 5m</span>
+        </div>
+        <div class="kpi-value-row">
+          <span class="kpi-value" id="val-cpu-now">--%</span>
+          <span class="kpi-subtext" id="val-cpu-avg">5m avg: --%</span>
+        </div>
+        <div class="kpi-bar-track">
+          <div class="kpi-bar-fill bar-cpu" id="bar-cpu" style="width: 0"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card" id="kpi-mem">
+        <div class="kpi-header">
+          <span class="kpi-title">Fleet Avg Memory</span>
+          <span class="kpi-pill pill-mem">1m / 5m</span>
+        </div>
+        <div class="kpi-value-row">
+          <span class="kpi-value" id="val-mem-now">--%</span>
+          <span class="kpi-subtext" id="val-mem-avg">5m avg: --%</span>
+        </div>
+        <div class="kpi-bar-track">
+          <div class="kpi-bar-fill bar-mem" id="bar-mem" style="width: 0"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card" id="kpi-net">
+        <div class="kpi-header">
+          <span class="kpi-title">Fleet Network Rate</span>
+          <span class="kpi-pill pill-net">Throughput</span>
+        </div>
+        <div class="kpi-value-row">
+          <span class="kpi-value" id="val-net-now">-- KB/s</span>
+          <span class="kpi-subtext" id="val-net-avg">5m avg: -- KB/s</span>
+        </div>
+        <div class="kpi-bar-track">
+          <div class="kpi-bar-fill bar-net" id="bar-net" style="width: 0"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card" id="kpi-incidents">
+        <div class="kpi-header">
+          <span class="kpi-title">CPU Anomaly Alerts</span>
+          <span class="kpi-pill pill-alert">Live Count</span>
+        </div>
+        <div class="kpi-value-row">
+          <span class="kpi-value" id="val-incidents-count">0</span>
+          <span class="kpi-subtext" id="val-active-nodes">0 nodes active</span>
+        </div>
+        <div class="kpi-bar-track">
+          <div class="kpi-bar-fill bar-alert" id="bar-incidents" style="width: 0"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Primary Visualization Grid -->
+    <main class="dashboard-grid">
+      <!-- Left Column: Real-Time Charts -->
+      <section class="card chart-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Real-Time CPU Usage &amp; Threshold</h2>
+            <p class="card-subtitle">Live 60-second telemetry rolling window</p>
+          </div>
+          <div class="chart-header-actions">
+            <select id="agent-filter-select" class="form-select" aria-label="Filter fleet by agent node">
+              <option value="all">Display: All Fleet Nodes</option>
+            </select>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-dot dot-cpu"></span> Fleet Avg</span>
+              <span class="legend-item"><span class="legend-dot dot-threshold"></span> Threshold</span>
+            </div>
+          </div>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="cpu-chart-canvas"></canvas>
+        </div>
+      </section>
+
+      <!-- Right Column: Incident & Alert Feed -->
+      <section class="card alert-card-panel">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Threshold Violations</h2>
+            <p class="card-subtitle">Live events pushed over WebSocket</p>
+          </div>
+          <span class="incident-counter-badge" id="incident-counter-badge">0 Alerts</span>
+        </div>
+        <div class="alert-feed-list" id="alert-feed">
+          <div class="empty-state" id="alert-empty-state">
+            <div class="empty-icon">🛡️</div>
+            <p class="empty-text">No CPU threshold breaches recorded.</p>
+            <span class="empty-subtext">Telemetry is operating within safe parameters.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bottom-Left: Memory & Network Chart -->
+      <section class="card chart-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Memory &amp; Network Throughput</h2>
+            <p class="card-subtitle">Aggregated utilization trends</p>
+          </div>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot dot-mem"></span> Memory %</span>
+            <span class="legend-item"><span class="legend-dot dot-net"></span> Network (KB/s)</span>
+          </div>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="mem-net-chart-canvas"></canvas>
+        </div>
+      </section>
+
+      <!-- Bottom-Right: Dynamic Runtime Settings -->
+      <section class="card settings-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 class="card-title">Runtime Threshold Controls</h2>
+            <p class="card-subtitle">Updates active rule via REST API (/api/settings)</p>
+          </div>
+        </div>
+        
+        <div class="settings-form">
+          <div class="form-group">
+            <div class="label-row">
+              <label for="threshold-slider">CPU Alert Threshold</label>
+              <span class="slider-display" id="slider-val-display">90%</span>
+            </div>
+            <input type="range" id="threshold-slider" min="1" max="100" value="90" class="range-slider">
+            <span class="form-help">Samples exceeding this value immediately trigger alert events.</span>
+          </div>
+
+          <div class="form-actions">
+            <button id="btn-update-threshold" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Apply Threshold
+            </button>
+            <span class="settings-feedback" id="settings-feedback"></span>
+          </div>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <div class="connection-quickinfo">
+          <div class="info-row">
+            <span class="info-label">Active Auth Token:</span>
+            <span class="info-value font-mono" id="display-token">drite-demo-token</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Ticket Endpoint:</span>
+            <span class="info-value font-mono">POST /api/v1/auth</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Node Fleet Matrix Table -->
+    <section class="card fleet-card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <h2 class="card-title">Monitored Node Fleet</h2>
+          <p class="card-subtitle">Individual node state and rolling 1-minute metrics</p>
+        </div>
+        <div class="header-btn-group">
+          <button id="btn-export-snapshot" class="btn btn-secondary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export JSON
+          </button>
+          <button id="btn-refresh-snapshot" class="btn btn-secondary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="fleet-table">
+          <thead>
+            <tr>
+              <th>Agent Identifier</th>
+              <th>Status</th>
+              <th>CPU (1m avg)</th>
+              <th>Memory (1m avg)</th>
+              <th>Network (1m avg)</th>
+              <th>Sample Count</th>
+              <th>Last Seen</th>
+            </tr>
+          </thead>
+          <tbody id="fleet-table-body">
+            <tr class="table-empty-row">
+              <td colspan="7">No active agents reporting. Run <code>go run ./cmd/agent -id node-01</code> to start streaming.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-backdrop" id="config-modal" style="display: none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Connection Configuration</h3>
+        <button class="modal-close" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="cfg-api-url">Backend Server URL</label>
+          <input type="text" id="cfg-api-url" class="form-input" value="http://localhost:8080">
+        </div>
+        <div class="form-group">
+          <label for="cfg-auth-token">Bearer Authentication Token</label>
+          <input type="password" id="cfg-auth-token" class="form-input" value="drite-demo-token">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-modal-save">Save &amp; Reconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

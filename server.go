@@ -61,6 +61,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/metrics/averages", s.HandleAverages)
 	mux.HandleFunc("/api/v1/auth", s.HandleAuth)
 	mux.HandleFunc("/api/v1/snapshot", s.HandleSnapshot)
+	mux.Handle("/", http.FileServer(http.Dir("./web")))
 	return mux
 }
 func writeJSON(w http.ResponseWriter, status int, value any) {
