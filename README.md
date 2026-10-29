@@ -1,9 +1,8 @@
-# DRITE telemetry backend
+# DRITE telemetry platform
 
-DRITE is a Go backend for receiving infrastructure telemetry, computing rolling
-averages, and streaming metrics and CPU alerts to dashboard subscribers. This
-stage contains backend code and command-line demonstrations. A UI can be added
-later without changing the API routes below.
+DRITE is a high-performance Go telemetry platform and real-time web dashboard
+for ingesting infrastructure metrics, computing rolling averages, and streaming
+live telemetry and CPU threshold alerts over WebSockets.
 
 ## Run
 
@@ -16,6 +15,8 @@ export DRITE_AUTH_TOKEN=drite-demo-token
 export DRITE_CPU_THRESHOLD=90
 go run ./cmd/drite
 ```
+
+Open the live dashboard in your browser: **[http://localhost:8080](http://localhost:8080)**
 
 In a second terminal, generate synthetic metrics:
 
@@ -81,6 +82,4 @@ go run ./cmd/loadtest -agents 10 -dashboards 2 -duration 10s
 The load tool requires the server to be running. It exits unsuccessfully if
 connections fail or the expected deliveries are incomplete.
 
-See [BACKEND_GUIDE.md](BACKEND_GUIDE.md) for every file's role, request and response
-formats, a step-by-step demonstration, design decisions, testing, profiling,
-requirements coverage, and remaining submission work.
+See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for full system overview, [BACKEND_GUIDE.md](BACKEND_GUIDE.md) for backend internals and API contracts, and [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) for dashboard features and UI testing.
