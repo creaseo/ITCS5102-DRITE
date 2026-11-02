@@ -4,7 +4,7 @@ package main
 import (
 	"context"
 	"flag"
-	drite "github.com/creaseo/DRITE"
+	drite "github.com/creaseo/DRITE/internal/drite"
 	"github.com/gorilla/websocket"
 	"log"
 	"math"

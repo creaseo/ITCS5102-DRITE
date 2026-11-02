@@ -277,14 +277,14 @@ func TestUC5ResponsiveConnectionAndShutdown(t *testing.T) {
 }
 func TestUC7Settings(t *testing.T) {
 	_, h := fixture(t, Config{})
-	for _, body := range []string{`null`, `{}`, `{"cpu_threshold":null}`, `{"cpu_threshold":-1}`, `{"cpu_threshold":101}`, `{"cpu_threshold":80,"typo":1}`, `{"cpu_threshold":80} {}`, strings.Repeat("x", 5000)} {
+	for _, body := range []string{`null`, `{}`, `{"cpu_threshold":null}`, `{"cpu_threshold":-1}`, `{"cpu_threshold":101}`, `{"alert_cooldown_sec":-1}`, `{"alert_cooldown_sec":5000}`, `{"cpu_threshold":80,"typo":1}`, `{"cpu_threshold":80} {}`, strings.Repeat("x", 5000)} {
 		code, _ := request(t, h, "POST", "/api/settings", body, true)
 		if code != 400 {
 			t.Fatalf("accepted %s", body)
 		}
 	}
-	code, data := request(t, h, "POST", "/api/settings", `{"cpu_threshold":0}`, true)
-	if code != 200 || !bytes.Contains(data, []byte(`"cpu_threshold":0`)) {
+	code, data := request(t, h, "POST", "/api/settings", `{"cpu_threshold":0,"alert_cooldown_sec":10}`, true)
+	if code != 200 || !bytes.Contains(data, []byte(`"cpu_threshold":0`)) || !bytes.Contains(data, []byte(`"alert_cooldown_sec":10`)) {
 		t.Fatalf("%d %s", code, data)
 	}
 	code, _ = request(t, h, "DELETE", "/api/settings", "", true)
@@ -475,5 +475,48 @@ func TestUC6RuntimeThresholdChanges(t *testing.T) {
 	}
 	if event(t, dashboard).Type != "metric" {
 		t.Fatal("missing metric")
+	}
+}
+
+func TestUC6AlertCooldownThrottling(t *testing.T) {
+	_, h := fixture(t, Config{CPUThreshold: 80, AlertCooldown: 5 * time.Second})
+	agent := socket(t, h, "/ws/agent?agent_id=node-throttle")
+	dashboard := socket(t, h, "/ws/dashboard")
+	sample := MetricMessage{CPUUsage: 85, MemoryUsage: 40, NetworkSpeed: 50}
+
+	// 1st sample triggers an alert because no alert has occurred yet.
+	if err := agent.WriteJSON(sample); err != nil {
+		t.Fatal(err)
+	}
+	if e := event(t, dashboard); e.Type != "alert" {
+		t.Fatalf("expected 1st alert, got: %+v", e)
+	}
+	if e := event(t, dashboard); e.Type != "metric" {
+		t.Fatalf("expected metric event, got: %+v", e)
+	}
+
+	// 2nd sample immediately following should be throttled (no alert, only metric).
+	if err := agent.WriteJSON(sample); err != nil {
+		t.Fatal(err)
+	}
+	if e := event(t, dashboard); e.Type != "metric" {
+		t.Fatalf("expected throttled sample to only yield metric, got: %+v", e)
+	}
+
+	// Update cooldown to 0 via /api/settings to disable throttling.
+	code, _ := request(t, h, "POST", "/api/settings", `{"alert_cooldown_sec":0}`, true)
+	if code != 200 {
+		t.Fatal(code)
+	}
+
+	// 3rd sample triggers alert immediately because cooldown is 0.
+	if err := agent.WriteJSON(sample); err != nil {
+		t.Fatal(err)
+	}
+	if e := event(t, dashboard); e.Type != "alert" {
+		t.Fatalf("expected unthrottled alert, got: %+v", e)
+	}
+	if e := event(t, dashboard); e.Type != "metric" {
+		t.Fatalf("expected metric event, got: %+v", e)
 	}
 }

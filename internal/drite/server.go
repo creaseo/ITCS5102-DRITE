@@ -16,6 +16,8 @@ type Server struct {
 	config     Config
 	configMu   sync.RWMutex
 	threshold  float64
+	cooldown   time.Duration
+	lastAlerts map[string]time.Time
 	upgrader   websocket.Upgrader
 	aggregator *RollingAggregator
 	hub        *Hub
@@ -33,8 +35,17 @@ type Server struct {
 func NewServer(cfg Config) *Server {
 	cfg = defaultConfig(cfg)
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Server{config: cfg, threshold: cfg.CPUThreshold, ctx: ctx, cancel: cancel,
-		ingest: make(chan MetricMessage, 256), aggregator: NewRollingAggregator(5 * time.Minute), tickets: make(map[string]connectionTicket)}
+	s := &Server{
+		config:     cfg,
+		threshold:  cfg.CPUThreshold,
+		cooldown:   cfg.AlertCooldown,
+		lastAlerts: make(map[string]time.Time),
+		ctx:        ctx,
+		cancel:     cancel,
+		ingest:     make(chan MetricMessage, 256),
+		aggregator: NewRollingAggregator(5 * time.Minute),
+		tickets:    make(map[string]connectionTicket),
+	}
 	// Gorilla's default origin policy permits missing Origin or the request's own host.
 	s.upgrader = websocket.Upgrader{ReadBufferSize: 1024, WriteBufferSize: 1024}
 	s.hub = newHub(s)
@@ -61,6 +72,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/metrics/averages", s.HandleAverages)
 	mux.HandleFunc("/api/v1/auth", s.HandleAuth)
 	mux.HandleFunc("/api/v1/snapshot", s.HandleSnapshot)
+	mux.Handle("/", http.FileServer(http.Dir("./web")))
 	return mux
 }
 func writeJSON(w http.ResponseWriter, status int, value any) {
