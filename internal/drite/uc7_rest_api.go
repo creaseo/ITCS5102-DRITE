@@ -17,17 +17,39 @@ func (s *Server) HandleSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == "POST" {
 		var body struct {
-			CPUThreshold *float64 `json:"cpu_threshold"`
+			CPUThreshold     *float64 `json:"cpu_threshold"`
+			AlertCooldownSec *float64 `json:"alert_cooldown_sec"`
 		}
-		if decodeJSON(w, r, &body) != nil || body.CPUThreshold == nil || math.IsNaN(*body.CPUThreshold) || math.IsInf(*body.CPUThreshold, 0) || *body.CPUThreshold < 0 || *body.CPUThreshold > 100 {
+		if decodeJSON(w, r, &body) != nil {
+			apiError(w, 400, "invalid body")
+			return
+		}
+		if body.CPUThreshold == nil && body.AlertCooldownSec == nil {
+			apiError(w, 400, "at least one of cpu_threshold or alert_cooldown_sec is required")
+			return
+		}
+		if body.CPUThreshold != nil && (math.IsNaN(*body.CPUThreshold) || math.IsInf(*body.CPUThreshold, 0) || *body.CPUThreshold < 0 || *body.CPUThreshold > 100) {
 			apiError(w, 400, "cpu_threshold must be a number in [0,100]")
 			return
 		}
+		if body.AlertCooldownSec != nil && (math.IsNaN(*body.AlertCooldownSec) || math.IsInf(*body.AlertCooldownSec, 0) || *body.AlertCooldownSec < 0 || *body.AlertCooldownSec > 3600) {
+			apiError(w, 400, "alert_cooldown_sec must be a number in [0,3600]")
+			return
+		}
 		s.configMu.Lock()
-		s.threshold = *body.CPUThreshold
+		if body.CPUThreshold != nil {
+			s.threshold = *body.CPUThreshold
+		}
+		if body.AlertCooldownSec != nil {
+			s.cooldown = time.Duration(*body.AlertCooldownSec * float64(time.Second))
+		}
 		s.configMu.Unlock()
 	}
-	writeJSON(w, 200, map[string]any{"auth_required": true, "cpu_threshold": s.cpuThreshold()})
+	writeJSON(w, 200, map[string]any{
+		"auth_required":      true,
+		"cpu_threshold":      s.cpuThreshold(),
+		"alert_cooldown_sec": s.alertCooldown().Seconds(),
+	})
 }
 func (s *Server) HandleAverages(w http.ResponseWriter, r *http.Request) {
 	if !method(w, r, "GET") || !s.requireAuth(w, r) {

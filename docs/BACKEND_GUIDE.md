@@ -33,7 +33,7 @@ averages, snapshots and live events; additional alert rules are future extension
 | UC3 channel fan-out | Central hub owns client membership; buffered subscriber queues; slow clients disconnected | Multiple-subscriber delivery and slow-consumer isolation tests |
 | UC4 rolling averages | Mutex-protected history; one-minute/five-minute global and per-agent averages | Window boundaries, out-of-order input, capacity, expiry and snapshot isolation tests |
 | UC5 heartbeat cleanup | Server Ping; client Pong; read/write deadlines; explicit shutdown | Missing-Pong eviction, responsive client and shutdown tests |
-| UC6 anomaly dispatch | CPU strictly above the active threshold produces an alert before its metric event | Alert ordering, strict threshold boundary, incident snapshot tests |
+| UC6 anomaly dispatch | CPU strictly above the active threshold produces an alert before its metric event, with per-agent alert cooldown throttling | Alert ordering, strict threshold boundary, incident snapshot, alert cooldown throttling tests |
 | UC7 REST reporting | Settings, averages and snapshot with bounded incident history | Authentication, settings validation and snapshot contents tests |
 | Program 1 | Four primitive types and eight operations | Runnable `demo-primitives` command |
 | Program 2 | Structs, maps, slices, loops, conditionals and switch | Runnable `demo-structures` command |
@@ -45,66 +45,71 @@ here are derived from the two supplied documents and README, not independently
 verified against the instructor's rubric. The course report, presentation,
 frontend and team contribution records remain separate submission work.
 
-## 2. Repository and file responsibilities
+### 2. Repository and file responsibilities
 
 ```text
 ITCS5102-DRITE/
 ├── README.md
-├── BACKEND_GUIDE.md
-├── VALIDATION.md
 ├── .env.example
 ├── .gitignore
 ├── go.mod
 ├── go.sum
-├── server.go
-├── config.go
-├── models.go
-├── uc1_authentication.go
-├── uc2_ingestion.go
-├── uc3_broadcast.go
-├── uc4_aggregation.go
-├── uc5_heartbeat.go
-├── uc6_alerts.go
-├── uc7_rest_api.go
-├── server_test.go
 ├── cmd/
 │   ├── drite/
 │   │   ├── main.go
 │   │   └── profiling.go
 │   ├── agent/main.go
-│   ├── loadtest/main.go
-│   ├── demo-primitives/main.go
-│   ├── demo-structures/main.go
-│   └── demo-concurrency/main.go
-└── original ideation documents
+│   └── loadtest/main.go
+├── internal/
+│   └── drite/
+│       ├── server.go
+│       ├── config.go
+│       ├── models.go
+│       ├── uc1_authentication.go
+│       ├── uc2_ingestion.go
+│       ├── uc3_broadcast.go
+│       ├── uc4_aggregation.go
+│       ├── uc5_heartbeat.go
+│       ├── uc6_alerts.go
+│       ├── uc7_rest_api.go
+│       └── server_test.go
+├── web/
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
+└── docs/
+    ├── PROJECT_GUIDE.md
+    ├── BACKEND_GUIDE.md
+    ├── FRONTEND_GUIDE.md
+    └── VALIDATION.md
 ```
 
 | File | Responsibility |
-| --- | --- |
-| `server.go` | Constructs the service and background goroutines; registers routes; coordinates shutdown; provides shared JSON/HTTP helpers |
-| `config.go` | Defines runtime configuration; validates the original environment variables; supplies heartbeat defaults |
-| `models.go` | Defines the shared metric, average, alert and outbound event contracts |
-| `uc1_authentication.go` | Validates bearer credentials; creates and consumes tickets; binds identities; upgrades and admits connections |
-| `uc2_ingestion.go` | Parses strict JSON and validates required values; stamps server receipt time; feeds the ingestion channel |
-| `uc3_broadcast.go` | Owns the client map and outgoing channel closure; delivers events to dashboards; removes slow consumers |
-| `uc4_aggregation.go` | Stores bounded raw history and incidents; computes incremental means; expires old samples/tickets |
-| `uc5_heartbeat.go` | Defines connection state and the sole application writer; sends Pings; handles Pong deadlines and cleanup |
-| `uc6_alerts.go` | Processes ingestion in order; records samples; checks the current threshold; publishes alert and metric events |
-| `uc7_rest_api.go` | Exposes authenticated runtime settings, averages, per-agent summaries and snapshot copies |
-| `server_test.go` | Unit and real HTTP/WebSocket integration tests; parsing and aggregation benchmarks |
+| :--- | :--- |
+| `internal/drite/server.go` | Constructs the service and background goroutines; registers routes; coordinates shutdown; provides shared JSON/HTTP helpers |
+| `internal/drite/config.go` | Defines runtime configuration; validates the original environment variables; supplies heartbeat defaults |
+| `internal/drite/models.go` | Defines the shared metric, average, alert and outbound event contracts |
+| `internal/drite/uc1_authentication.go` | Validates bearer credentials; creates and consumes tickets; binds identities; upgrades and admits connections |
+| `internal/drite/uc2_ingestion.go` | Parses strict JSON and validates required values; stamps server receipt time; feeds the ingestion channel |
+| `internal/drite/uc3_broadcast.go` | Owns the client map and outgoing channel closure; delivers events to dashboards; removes slow consumers |
+| `internal/drite/uc4_aggregation.go` | Stores bounded raw history and incidents; computes incremental means; expires old samples/tickets |
+| `internal/drite/uc5_heartbeat.go` | Defines connection state and the sole application writer; sends Pings; handles Pong deadlines and cleanup |
+| `internal/drite/uc6_alerts.go` | Processes ingestion in order; records samples; checks the current threshold; publishes alert and metric events |
+| `internal/drite/uc7_rest_api.go` | Exposes authenticated runtime settings, averages, per-agent summaries and snapshot copies |
+| `internal/drite/server_test.go` | Unit and real HTTP/WebSocket integration tests; parsing and aggregation benchmarks |
 | `cmd/drite/main.go` | Loads configuration, starts HTTP, handles interrupt/SIGTERM, shuts down HTTP and upgraded sockets |
 | `cmd/drite/profiling.go` | Starts optional pprof on a loopback-only listener, separate from public routes |
 | `cmd/agent/main.go` | Generates synthetic telemetry, with optional fixed CPU, and answers server Pings |
 | `cmd/loadtest/main.go` | Creates concurrent agents/subscribers, counts deliveries, reports latency percentiles and failures |
-| `cmd/demo-primitives/main.go` | Milestone language example: `int`, `float64`, `string`, `bool` and two operations each |
-| `cmd/demo-structures/main.go` | Milestone language example: structured data and control flow |
-| `cmd/demo-concurrency/main.go` | Milestone language example: worker pool and isolated panic recovery |
-| `go.mod`, `go.sum` | Preserve the module identity, Go version requirement and WebSocket dependency checksums |
+| `web/` | Standalone real-time web dashboard client (HTML5/Canvas) |
+| `go.mod`, `go.sum` | Preserve module identity, Go version requirement and WebSocket dependency checksums |
 | `.env.example` | Lists environment settings without automatically loading them |
 | `.gitignore` | Excludes local credentials, compiled binaries and profiling/test artifacts |
 | `README.md` | Short introduction and startup reference |
-| `BACKEND_GUIDE.md` | Full implementation and run guide |
-| `VALIDATION.md` | Records actual verification and experiment limitations |
+| `docs/PROJECT_GUIDE.md` | Unified overarching system map and execution instructions |
+| `docs/BACKEND_GUIDE.md` | Full backend implementation and run guide |
+| `docs/FRONTEND_GUIDE.md` | Full frontend implementation and dashboard user guide |
+| `docs/VALIDATION.md` | Records actual verification and experiment limitations |
 
 ## 3. Data flow and concurrency ownership
 
@@ -179,14 +184,14 @@ TOKEN=drite-demo-token
 curl -sS -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/settings
 curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"cpu_threshold":80}' http://localhost:8080/api/settings
+  -d '{"cpu_threshold":80,"alert_cooldown_sec":5}' http://localhost:8080/api/settings
 curl -sS -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/metrics/averages
 curl -sS -H "Authorization: Bearer $TOKEN" \
   'http://localhost:8080/api/metrics/averages?agent_id=node-01'
 curl -sS -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/snapshot
 ```
 
-Settings return `{"auth_required":true,"cpu_threshold":80}`. Averages return:
+Settings return `{"auth_required":true,"cpu_threshold":80,"alert_cooldown_sec":5}`. Averages return:
 
 ```json
 {
